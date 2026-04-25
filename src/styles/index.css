@@ -369,49 +369,74 @@ img {
   display: inline-flex;
   align-items: center;
   gap: 0;
-  padding: 4px;
-  background: var(--glass-inner);
-  border: 1px solid var(--glass-border);
+  padding: 3px;
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--fg-1) 6%, transparent) 0%,
+      color-mix(in srgb, var(--fg-1) 2%, transparent) 100%),
+    var(--glass-inner);
+  border: 1px solid var(--glass-border-strong);
   border-radius: 999px;
   position: relative;
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 14%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, black 22%, transparent),
+    0 1px 2px color-mix(in srgb, black 18%, transparent);
 }
 
 .theme-toggle button {
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   border-radius: 999px;
   display: grid;
   place-items: center;
   color: var(--fg-3);
-  transition: color 0.25s var(--ease);
+  transition: color 0.3s var(--ease), transform 0.25s var(--ease);
   position: relative;
   z-index: 2;
 }
 
+.theme-toggle button:hover {
+  color: var(--fg-2);
+}
+
 .theme-toggle button.active {
-  color: var(--fg-1);
+  color: white;
+}
+
+html[data-theme='light'] .theme-toggle button.active {
+  color: white;
 }
 
 .theme-toggle button svg {
-  width: 16px;
-  height: 16px;
+  width: 15px;
+  height: 15px;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.18));
 }
 
 .theme-toggle .pill {
   position: absolute;
-  top: 4px;
-  left: 4px;
-  width: 34px;
-  height: 34px;
+  top: 3px;
+  left: 3px;
+  width: 32px;
+  height: 32px;
   border-radius: 999px;
-  background: linear-gradient(135deg, var(--accent-a), var(--accent-b));
-  transition: transform 0.35s var(--ease);
+  background:
+    radial-gradient(120% 120% at 30% 18%,
+      color-mix(in srgb, white 32%, transparent) 0%,
+      transparent 55%),
+    linear-gradient(160deg, var(--accent-a) 0%, var(--accent-b) 100%);
+  transition: transform 0.45s var(--ease);
   z-index: 1;
-  box-shadow: 0 4px 14px color-mix(in srgb, var(--accent-b) 35%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 50%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, black 22%, transparent),
+    0 4px 14px color-mix(in srgb, var(--accent-b) 45%, transparent),
+    0 2px 6px color-mix(in srgb, var(--accent-a) 35%, transparent);
 }
 
 html[data-theme='light'] .theme-toggle .pill {
-  transform: translateX(38px);
+  transform: translateX(32px);
 }
 
 /* ---------- Main content ---------- */
@@ -467,6 +492,7 @@ html[data-theme='light'] .theme-toggle .pill {
 }
 
 .btn {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -474,21 +500,31 @@ html[data-theme='light'] .theme-toggle .pill {
   border-radius: 999px;
   font-size: 13px;
   font-weight: 600;
+  letter-spacing: -0.005em;
   color: var(--fg-1);
   background: var(--glass-inner);
   border: 1px solid var(--glass-border);
-  transition: all 0.25s var(--ease);
+  transition:
+    transform 0.2s var(--ease),
+    box-shadow 0.25s var(--ease),
+    background 0.25s var(--ease),
+    border-color 0.25s var(--ease),
+    filter 0.2s var(--ease);
   white-space: nowrap;
+  isolation: isolate;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .btn:hover {
   background: var(--glass-bg-strong);
+  border-color: var(--glass-border-strong);
   transform: translateY(-1px);
   box-shadow: var(--shadow-sm);
 }
 
 .btn:active {
   transform: translateY(0);
+  filter: brightness(0.97);
 }
 
 .btn svg {
@@ -497,16 +533,80 @@ html[data-theme='light'] .theme-toggle .pill {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--accent-a), var(--accent-b));
   color: white;
   border-color: transparent;
-  box-shadow: 0 10px 24px color-mix(in srgb, var(--accent-b) 35%, transparent);
+  background:
+    radial-gradient(120% 100% at 20% 0%,
+      color-mix(in srgb, white 30%, transparent) 0%,
+      transparent 55%),
+    linear-gradient(160deg, var(--accent-a) 0%, var(--accent-b) 100%);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 45%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, black 22%, transparent),
+    0 1px 0 color-mix(in srgb, var(--accent-a) 35%, transparent),
+    0 8px 22px color-mix(in srgb, var(--accent-b) 40%, transparent),
+    0 2px 6px color-mix(in srgb, var(--accent-a) 35%, transparent);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.18);
+}
+
+.btn-primary svg {
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.2));
+}
+
+.btn-primary::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(180deg,
+    color-mix(in srgb, white 65%, transparent),
+    color-mix(in srgb, white 8%, transparent) 45%,
+    color-mix(in srgb, black 25%, transparent));
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.btn-primary::after {
+  content: '';
+  position: absolute;
+  top: 1px;
+  left: 8%;
+  right: 8%;
+  height: 45%;
+  border-radius: 999px 999px 80% 80% / 999px 999px 80% 80%;
+  background: linear-gradient(180deg,
+    color-mix(in srgb, white 38%, transparent) 0%,
+    transparent 100%);
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.9;
+}
+
+.btn-primary > * {
+  position: relative;
+  z-index: 2;
 }
 
 .btn-primary:hover {
-  background: linear-gradient(135deg, var(--accent-a), var(--accent-b));
-  filter: brightness(1.08);
-  box-shadow: 0 14px 32px color-mix(in srgb, var(--accent-b) 45%, transparent);
+  transform: translateY(-1px);
+  filter: brightness(1.06) saturate(1.05);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 55%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, black 22%, transparent),
+    0 1px 0 color-mix(in srgb, var(--accent-a) 35%, transparent),
+    0 14px 32px color-mix(in srgb, var(--accent-b) 50%, transparent),
+    0 4px 10px color-mix(in srgb, var(--accent-a) 40%, transparent);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+  filter: brightness(0.96);
 }
 
 .btn-danger {
@@ -516,10 +616,12 @@ html[data-theme='light'] .theme-toggle .pill {
 .btn-ghost {
   background: transparent;
   border-color: transparent;
+  box-shadow: none;
 }
 
 .btn-ghost:hover {
   background: var(--glass-inner);
+  box-shadow: var(--shadow-sm);
 }
 
 .btn-icon {
@@ -748,26 +850,53 @@ html[data-theme='light'] .theme-toggle .pill {
   border-radius: 999px;
   display: grid;
   place-items: center;
-  background: rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(10px);
+  background:
+    linear-gradient(180deg,
+      rgba(255, 255, 255, 0.14) 0%,
+      rgba(255, 255, 255, 0) 60%),
+    rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
   color: white;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  transition: all 0.2s var(--ease);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.25),
+    0 4px 12px rgba(0, 0, 0, 0.3);
+  transition: transform 0.22s var(--ease), background 0.22s var(--ease),
+    border-color 0.22s var(--ease), box-shadow 0.22s var(--ease);
 }
 
 .icon-btn:hover {
-  background: rgba(0, 0, 0, 0.7);
-  transform: scale(1.05);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0) 60%),
+    rgba(0, 0, 0, 0.62);
+  transform: scale(1.06);
+  border-color: rgba(255, 255, 255, 0.32);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.3),
+    0 8px 22px rgba(0, 0, 0, 0.45);
+}
+
+.icon-btn:active {
+  transform: scale(0.97);
 }
 
 .icon-btn.danger:hover {
-  background: var(--danger);
-  border-color: var(--danger);
+  background: linear-gradient(180deg,
+    color-mix(in srgb, white 18%, var(--danger)) 0%,
+    var(--danger) 100%);
+  border-color: color-mix(in srgb, white 30%, var(--danger));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 8px 22px color-mix(in srgb, var(--danger) 55%, transparent);
 }
 
 .icon-btn svg {
   width: 14px;
   height: 14px;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.3));
 }
 
 .card-title-overlay {
@@ -821,33 +950,105 @@ html[data-theme='light'] .theme-toggle .pill {
 }
 
 .ep-btn {
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
+  position: relative;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
   display: grid;
   place-items: center;
-  background: var(--glass-inner);
-  border: 1px solid var(--glass-border);
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, white 12%, transparent) 0%,
+      transparent 60%),
+    var(--glass-inner);
+  border: 1px solid var(--glass-border-strong);
   color: var(--fg-1);
   font-weight: 700;
   font-size: 15px;
-  transition: all 0.2s var(--ease);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 18%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, black 14%, transparent),
+    0 2px 6px color-mix(in srgb, black 22%, transparent);
+  transition: transform 0.2s var(--ease), background 0.2s var(--ease),
+    box-shadow 0.2s var(--ease), filter 0.2s var(--ease);
+  isolation: isolate;
 }
 
 .ep-btn:hover:not(:disabled) {
-  background: var(--glass-bg-strong);
-  transform: scale(1.05);
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, white 18%, transparent) 0%,
+      transparent 60%),
+    var(--glass-bg-strong);
+  transform: translateY(-1px);
+}
+
+.ep-btn:active:not(:disabled) {
+  transform: translateY(0);
+  filter: brightness(0.95);
 }
 
 .ep-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+  box-shadow: none;
+}
+
+.ep-btn svg {
+  width: 14px;
+  height: 14px;
+  filter: drop-shadow(0 1px 0 color-mix(in srgb, black 18%, transparent));
 }
 
 .ep-btn.primary {
-  background: linear-gradient(135deg, var(--accent-a), var(--accent-b));
   border-color: transparent;
   color: white;
+  background:
+    radial-gradient(120% 100% at 25% 0%,
+      color-mix(in srgb, white 32%, transparent) 0%,
+      transparent 55%),
+    linear-gradient(160deg, var(--accent-a) 0%, var(--accent-b) 100%);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 50%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, black 22%, transparent),
+    0 1px 0 color-mix(in srgb, var(--accent-a) 35%, transparent),
+    0 6px 14px color-mix(in srgb, var(--accent-b) 45%, transparent),
+    0 2px 5px color-mix(in srgb, var(--accent-a) 35%, transparent);
+}
+
+.ep-btn.primary svg {
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.25));
+}
+
+.ep-btn.primary:hover:not(:disabled) {
+  filter: brightness(1.05) saturate(1.05);
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 60%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, black 22%, transparent),
+    0 1px 0 color-mix(in srgb, var(--accent-a) 35%, transparent),
+    0 10px 22px color-mix(in srgb, var(--accent-b) 55%, transparent),
+    0 4px 8px color-mix(in srgb, var(--accent-a) 45%, transparent);
+}
+
+.ep-btn.primary::after {
+  content: '';
+  position: absolute;
+  top: 1px;
+  left: 12%;
+  right: 12%;
+  height: 40%;
+  border-radius: 8px 8px 18px 18px / 8px 8px 18px 18px;
+  background: linear-gradient(180deg,
+    color-mix(in srgb, white 35%, transparent) 0%,
+    transparent 100%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.ep-btn.primary > * {
+  position: relative;
+  z-index: 2;
 }
 
 .ep-count {

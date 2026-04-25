@@ -1,16 +1,70 @@
-# React + Vite
+# Otaku Vault
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A glassmorphic anime list manager built with React + Vite. Track every anime you're watching, completed, on hold, plan to watch, or dropped — all stored locally in your browser.
 
-Currently, two official plugins are available:
+**Live demo:** https://dist-iaqwegyw.devinapps.com
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Features
 
-## React Compiler
+- **5 lists** — Watching, Completed, On Hold, Plan to Watch, Dropped, plus an "All Anime" view.
+- **Photo uploads** — drop in a cover image; auto-downscaled to keep `localStorage` lean.
+- **Episode tracker** — `+` / `−` buttons with a live progress bar on every card.
+- **Smart auto-moves** — finishing the last episode auto-moves an anime to *Completed*; starting a *Plan to Watch* anime auto-moves it to *Watching*.
+- **Quick move popover** — shuffle any anime between lists in one click.
+- **Edit & remove** any anime, with confirmation toasts.
+- **Search** across title, studio, and notes.
+- **Light & dark themes** with an animated toggle.
+- **Glass UI** — frosted panels, ambient aurora background, noise texture, hover lift, rise-in animations.
+- **Fully responsive** — sidebar collapses on mobile.
+- **Zero backend** — everything persists in `localStorage`.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Tech stack
 
-## Expanding the ESLint configuration
+- React 19 + Vite 8
+- Plain CSS (CSS variables for theming, `backdrop-filter` for the glass)
+- No external UI libraries
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Run locally
+
+```bash
+npm install
+npm run dev
+```
+
+Build a production bundle:
+
+```bash
+npm run build
+npm run preview
+```
+
+## Project structure
+
+```
+src/
+├── App.jsx                  # main app shell, state, persistence
+├── main.jsx                 # React entry
+├── components/
+│   ├── Sidebar.jsx          # left nav with list counts + theme toggle
+│   ├── AnimeCard.jsx        # cover art, episode tracker, quick actions
+│   ├── AnimeModal.jsx       # add / edit form with image upload
+│   ├── MovePopover.jsx      # "move to list" floating menu
+│   └── ThemeToggle.jsx      # animated light/dark switch
+├── lib/
+│   ├── lists.js             # list definitions
+│   ├── icons.jsx            # inline SVG icon components
+│   ├── iconMap.js           # list-id → icon mapping
+│   └── storage.js           # useLocalStorage hook + uid()
+└── styles/
+    └── index.css            # the entire glass UI system
+```
+
+## Storage
+
+Three `localStorage` keys are used:
+
+- `otaku-vault/animes/v1` — array of anime entries
+- `otaku-vault/theme` — `"dark"` or `"light"`
+- `otaku-vault/active-list` — last-selected list
+
+Clear them in DevTools to reset the app.
