@@ -78,6 +78,19 @@ function AnimeCardImpl({ anime, onIncrement, onDecrement, onEdit, onDelete, onQu
       </div>
 
       <div className="card-body">
+        {/* Title shown only in mobile horizontal layout (CSS-toggled). */}
+        <div className="card-info-mobile">
+          {list && <span className="card-tag-mobile">{list.name}</span>}
+          <h3 className="card-title-mobile">{anime.title}</h3>
+          {(anime.year || anime.studio) && (
+            <div className="card-sub-mobile">
+              {anime.year ? <span>{anime.year}</span> : null}
+              {anime.year && anime.studio ? <span aria-hidden="true">·</span> : null}
+              {anime.studio ? <span>{anime.studio}</span> : null}
+            </div>
+          )}
+        </div>
+
         <div className="episode-tracker" aria-label="Episodes watched">
           <button
             type="button"
