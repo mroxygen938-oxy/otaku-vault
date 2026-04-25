@@ -1,10 +1,19 @@
 import { LISTS } from '../lib/lists.js'
 import { ICON_MAP } from '../lib/iconMap.js'
+import { IconX } from '../lib/icons.jsx'
 import ThemeToggle from './ThemeToggle.jsx'
 
-export default function Sidebar({ activeList, onSelect, counts, theme, onTheme, totalCount }) {
+export default function Sidebar({
+  activeList,
+  onSelect,
+  counts,
+  theme,
+  onTheme,
+  totalCount,
+  onClose,
+}) {
   return (
-    <aside className="sidebar glass">
+    <aside className="sidebar glass" role="navigation" aria-label="Lists navigation">
       <div className="brand">
         <div className="brand-logo" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -22,6 +31,16 @@ export default function Sidebar({ activeList, onSelect, counts, theme, onTheme, 
           <div className="brand-title">Otaku Vault</div>
           <div className="brand-subtitle">Your anime library</div>
         </div>
+        {onClose && (
+          <button
+            type="button"
+            className="sidebar-close btn btn-icon btn-ghost"
+            onClick={onClose}
+            aria-label="Close navigation"
+          >
+            <IconX />
+          </button>
+        )}
       </div>
 
       <nav className="nav" aria-label="Lists">
@@ -32,7 +51,16 @@ export default function Sidebar({ activeList, onSelect, counts, theme, onTheme, 
           onClick={() => onSelect('all')}
         >
           <span className="nav-icon">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <svg
+              viewBox="0 0 24 24"
+              width="18"
+              height="18"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <rect x="3" y="3" width="7" height="7" rx="1.5" />
               <rect x="14" y="3" width="7" height="7" rx="1.5" />
               <rect x="3" y="14" width="7" height="7" rx="1.5" />
@@ -65,9 +93,7 @@ export default function Sidebar({ activeList, onSelect, counts, theme, onTheme, 
 
       <div className="sidebar-footer">
         <ThemeToggle theme={theme} onChange={onTheme} />
-        <div style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--fg-3)' }}>
-          v1.0
-        </div>
+        <div style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--fg-3)' }}>v1.0</div>
       </div>
     </aside>
   )

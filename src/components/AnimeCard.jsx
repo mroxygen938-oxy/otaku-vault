@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { memo, useRef } from 'react'
 import {
   IconCalendar,
   IconEdit,
@@ -10,7 +10,7 @@ import {
 } from '../lib/icons.jsx'
 import { listById } from '../lib/lists.js'
 
-export default function AnimeCard({ anime, onIncrement, onDecrement, onEdit, onDelete, onQuickMove }) {
+function AnimeCardImpl({ anime, onIncrement, onDecrement, onEdit, onDelete, onQuickMove }) {
   const list = listById(anime.list)
   const total = Number(anime.totalEpisodes) || 0
   const watched = Math.max(0, Math.min(Number(anime.watchedEpisodes) || 0, total || Number.POSITIVE_INFINITY))
@@ -125,3 +125,7 @@ export default function AnimeCard({ anime, onIncrement, onDecrement, onEdit, onD
     </article>
   )
 }
+
+const AnimeCard = memo(AnimeCardImpl, (prev, next) => prev.anime === next.anime)
+
+export default AnimeCard

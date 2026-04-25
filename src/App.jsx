@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Sidebar from './components/Sidebar.jsx'
 import AnimeCard from './components/AnimeCard.jsx'
 import AnimeModal from './components/AnimeModal.jsx'
@@ -71,15 +71,50 @@ export default function App() {
   const [animes, setAnimes] = useLocalStorage(STORAGE_KEY_ANIME, SAMPLE_ANIME)
   const [activeList, setActiveList] = useLocalStorage(STORAGE_KEY_LIST, 'watching')
   const [query, setQuery] = useState('')
+  const [debouncedQuery, setDebouncedQuery] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState(null)
   const [movePopover, setMovePopover] = useState(null)
   const [toasts, setToasts] = useState([])
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const searchRef = useRef(null)
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
   }, [theme])
+
+  // Debounce search input — keeps typing buttery smooth on long lists.
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQuery(query.trim().toLowerCase()), 80)
+    return () => clearTimeout(t)
+  }, [query])
+
+  // Cmd/Ctrl + K to focus search; Esc inside search to clear.
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        searchRef.current?.focus()
+        searchRef.current?.select()
+      } else if (e.key === '/' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+        e.preventDefault()
+        searchRef.current?.focus()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
+  // Body scroll lock when mobile nav open.
+  useEffect(() => {
+    if (mobileNavOpen) {
+      const prev = document.body.style.overflow
+      document.body.style.overflow = 'hidden'
+      return () => {
+        document.body.style.overflow = prev
+      }
+    }
+  }, [mobileNavOpen])
 
   const counts = useMemo(() => {
     const c = Object.fromEntries(LIST_IDS.map((id) => [id, 0]))
@@ -88,19 +123,22 @@ export default function App() {
   }, [animes])
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
+    const q = debouncedQuery
     return animes
       .filter((a) => (activeList === 'all' ? true : a.list === activeList))
       .filter((a) => {
         if (!q) return true
+        const list = listById(a.list)
         return (
           a.title.toLowerCase().includes(q) ||
           (a.studio || '').toLowerCase().includes(q) ||
-          (a.notes || '').toLowerCase().includes(q)
+          (a.notes || '').toLowerCase().includes(q) ||
+          String(a.year || '').includes(q) ||
+          (list?.name || '').toLowerCase().includes(q)
         )
       })
       .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
-  }, [animes, activeList, query])
+  }, [animes, activeList, debouncedQuery])
 
   const listInfo = activeList === 'all'
     ? {
@@ -128,105 +166,146 @@ export default function App() {
     }
   }, [animes, activeList])
 
-  const toast = (msg) => {
+  const toast = useCallback((msg) => {
     const id = uid()
     setToasts((t) => [...t, { id, msg }])
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 2400)
-  }
+  }, [])
 
-  const openAdd = () => {
+  const openAdd = useCallback(() => {
     setEditing(null)
     setModalOpen(true)
-  }
+  }, [])
 
-  const openEdit = (anime) => {
+  const openEdit = useCallback((anime) => {
     setEditing(anime)
     setModalOpen(true)
-  }
+  }, [])
 
-  const saveAnime = (data) => {
-    if (editing?.id) {
-      setAnimes((a) => a.map((x) => (x.id === editing.id ? { ...x, ...data, id: editing.id } : x)))
-      toast('Updated')
-    } else {
-      const entry = { ...data, id: uid(), createdAt: Date.now() }
-      setAnimes((a) => [entry, ...a])
-      setActiveList(entry.list)
-      toast('Added to your library')
-    }
+  const saveAnime = useCallback(
+    (data) => {
+      setEditing((current) => {
+        if (current?.id) {
+          setAnimes((a) => a.map((x) => (x.id === current.id ? { ...x, ...data, id: current.id } : x)))
+          toast('Updated')
+        } else {
+          const entry = { ...data, id: uid(), createdAt: Date.now() }
+          setAnimes((a) => [entry, ...a])
+          setActiveList(entry.list)
+          toast('Added to your library')
+        }
+        return null
+      })
+      setModalOpen(false)
+    },
+    [setAnimes, setActiveList, toast]
+  )
+
+  const deleteAnime = useCallback(
+    (anime) => {
+      setAnimes((a) => a.filter((x) => x.id !== anime.id))
+      toast('Removed')
+    },
+    [setAnimes, toast]
+  )
+
+  const moveAnime = useCallback(
+    (anime, listId) => {
+      setAnimes((a) =>
+        a.map((x) => {
+          if (x.id !== anime.id) return x
+          const patch = { list: listId }
+          if (listId === 'completed' && x.totalEpisodes > 0) {
+            patch.watchedEpisodes = x.totalEpisodes
+          }
+          return { ...x, ...patch }
+        })
+      )
+      const list = listById(listId)
+      toast(`Moved to ${list?.name}`)
+      setMovePopover(null)
+    },
+    [setAnimes, toast]
+  )
+
+  const increment = useCallback(
+    (anime) => {
+      setAnimes((a) =>
+        a.map((x) => {
+          if (x.id !== anime.id) return x
+          const total = Number(x.totalEpisodes) || 0
+          const next = Number(x.watchedEpisodes || 0) + 1
+          const clamped = total > 0 ? Math.min(next, total) : next
+          const patch = { watchedEpisodes: clamped }
+          if (total > 0 && clamped >= total && x.list !== 'completed') {
+            patch.list = 'completed'
+          } else if (clamped > 0 && x.list === 'planToWatch') {
+            patch.list = 'watching'
+          }
+          return { ...x, ...patch }
+        })
+      )
+    },
+    [setAnimes]
+  )
+
+  const decrement = useCallback(
+    (anime) => {
+      setAnimes((a) =>
+        a.map((x) => {
+          if (x.id !== anime.id) return x
+          const next = Math.max(0, Number(x.watchedEpisodes || 0) - 1)
+          return { ...x, watchedEpisodes: next }
+        })
+      )
+    },
+    [setAnimes]
+  )
+
+  const openQuickMove = useCallback((anime, anchorEl) => {
+    const rect = anchorEl.getBoundingClientRect()
+    setMovePopover({
+      anime,
+      rect: { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right },
+    })
+  }, [])
+
+  const closeModal = useCallback(() => {
     setModalOpen(false)
     setEditing(null)
-  }
+  }, [])
 
-  const deleteAnime = (anime) => {
-    setAnimes((a) => a.filter((x) => x.id !== anime.id))
-    toast('Removed')
-  }
+  const onSelectList = useCallback(
+    (id) => {
+      setActiveList(id)
+      setMobileNavOpen(false)
+    },
+    [setActiveList]
+  )
 
-  const moveAnime = (anime, listId) => {
-    setAnimes((a) =>
-      a.map((x) => {
-        if (x.id !== anime.id) return x
-        const patch = { list: listId }
-        if (listId === 'completed' && x.totalEpisodes > 0) {
-          patch.watchedEpisodes = x.totalEpisodes
-        }
-        return { ...x, ...patch }
-      })
-    )
-    const list = listById(listId)
-    toast(`Moved to ${list?.name}`)
-    setMovePopover(null)
-  }
-
-  const increment = (anime) => {
-    setAnimes((a) =>
-      a.map((x) => {
-        if (x.id !== anime.id) return x
-        const total = Number(x.totalEpisodes) || 0
-        const next = Number(x.watchedEpisodes || 0) + 1
-        const clamped = total > 0 ? Math.min(next, total) : next
-        const patch = { watchedEpisodes: clamped }
-        if (total > 0 && clamped >= total && x.list !== 'completed') {
-          patch.list = 'completed'
-        } else if (clamped > 0 && x.list === 'planToWatch') {
-          patch.list = 'watching'
-        }
-        return { ...x, ...patch }
-      })
-    )
-  }
-
-  const decrement = (anime) => {
-    setAnimes((a) =>
-      a.map((x) => {
-        if (x.id !== anime.id) return x
-        const next = Math.max(0, Number(x.watchedEpisodes || 0) - 1)
-        return { ...x, watchedEpisodes: next }
-      })
-    )
-  }
-
-  const openQuickMove = (anime, anchorEl) => {
-    const rect = anchorEl.getBoundingClientRect()
-    setMovePopover({ anime, rect: { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right } })
-  }
+  const filteredCount = filtered.length
+  const totalForActive = activeList === 'all' ? animes.length : counts[activeList] ?? 0
+  const isSearching = debouncedQuery.length > 0
 
   return (
     <div className="app">
       <div className="ambient" aria-hidden="true" />
 
+      <div
+        className={`sidebar-backdrop ${mobileNavOpen ? 'visible' : ''}`}
+        aria-hidden="true"
+        onClick={() => setMobileNavOpen(false)}
+      />
+
       <div className={`sidebar-mobile-wrap ${mobileNavOpen ? 'open' : ''}`}>
         <Sidebar
           activeList={activeList}
-          onSelect={(id) => {
-            setActiveList(id)
-            setMobileNavOpen(false)
-          }}
+          onSelect={onSelectList}
           counts={counts}
           theme={theme}
           onTheme={setTheme}
           totalCount={animes.length}
+          onClose={() => setMobileNavOpen(false)}
         />
       </div>
 
@@ -237,33 +316,52 @@ export default function App() {
             className="btn btn-icon btn-ghost mobile-sidebar-toggle"
             onClick={() => setMobileNavOpen((v) => !v)}
             aria-label="Toggle navigation"
+            aria-expanded={mobileNavOpen}
           >
             {mobileNavOpen ? <IconX /> : <IconMenu />}
           </button>
           <div className="search">
             <IconSearch />
             <input
+              ref={searchRef}
               type="search"
-              placeholder="Search your library…"
+              placeholder="Search title, studio, year, list…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               aria-label="Search library"
+              enterKeyHint="search"
+              autoCapitalize="off"
+              autoCorrect="off"
+              spellCheck="false"
             />
+            {isSearching && (
+              <span className="search-count" aria-live="polite">
+                {filteredCount}
+              </span>
+            )}
             {query && (
               <button
                 type="button"
-                className="btn btn-ghost btn-icon"
-                style={{ width: 24, height: 24 }}
-                onClick={() => setQuery('')}
+                className="search-clear"
+                onClick={() => {
+                  setQuery('')
+                  searchRef.current?.focus()
+                }}
                 aria-label="Clear search"
               >
                 <IconX />
               </button>
             )}
+            <kbd className="search-kbd" aria-hidden="true">⌘K</kbd>
           </div>
-          <button type="button" className="btn btn-primary" onClick={openAdd}>
+          <button
+            type="button"
+            className="btn btn-primary topbar-add"
+            onClick={openAdd}
+            aria-label="Add anime"
+          >
             <IconPlus />
-            <span>Add anime</span>
+            <span className="topbar-add-label">Add anime</span>
           </button>
         </div>
 
@@ -276,7 +374,9 @@ export default function App() {
           <div className="list-stats">
             <div className="stat">
               <div className="stat-label">Titles</div>
-              <div className="stat-value">{headerStats.titles}</div>
+              <div className="stat-value">
+                {isSearching ? `${filteredCount}/${totalForActive}` : headerStats.titles}
+              </div>
             </div>
             <div className="stat">
               <div className="stat-label">Episodes</div>
@@ -305,14 +405,14 @@ export default function App() {
               <IconSparkle />
             </div>
             <h2 className="empty-title">
-              {query ? 'Nothing matches that search' : 'This shelf is empty'}
+              {isSearching ? 'Nothing matches that search' : 'This shelf is empty'}
             </h2>
             <p className="empty-text">
-              {query
-                ? 'Try a different title, studio, or clear the search.'
+              {isSearching
+                ? 'Try a different title, studio, year, or list.'
                 : 'Add your first anime to start building this list.'}
             </p>
-            {!query && (
+            {!isSearching && (
               <button type="button" className="btn btn-primary" onClick={openAdd}>
                 <IconPlus />
                 <span>Add your first anime</span>
@@ -336,13 +436,19 @@ export default function App() {
         )}
       </main>
 
+      <button
+        type="button"
+        className="fab"
+        onClick={openAdd}
+        aria-label="Add anime"
+      >
+        <IconPlus />
+      </button>
+
       <AnimeModal
         open={modalOpen}
         initial={editing}
-        onClose={() => {
-          setModalOpen(false)
-          setEditing(null)
-        }}
+        onClose={closeModal}
         onSave={saveAnime}
       />
 
