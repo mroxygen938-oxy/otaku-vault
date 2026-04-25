@@ -1,18 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
 import { IconImage, IconStar, IconX } from '../lib/icons.jsx'
-import { LISTS } from '../lib/lists.js'
+import { getLists, getModeConfig } from '../lib/lists.js'
 
-const emptyAnime = {
+const emptyItem = (mode) => ({
   title: '',
   image: '',
-  list: 'watching',
+  list: getModeConfig(mode).activeStartList,
   totalEpisodes: '',
   watchedEpisodes: 0,
   year: '',
   studio: '',
   rating: 0,
   notes: '',
-}
+})
 
 async function fileToDataUrl(file, maxDim = 800) {
   const readerData = await new Promise((resolve, reject) => {
@@ -44,20 +44,23 @@ async function fileToDataUrl(file, maxDim = 800) {
   }
 }
 
-export default function AnimeModal({ open, initial, onClose, onSave }) {
+export default function AnimeModal({ open, initial, mediaMode = 'anime', onClose, onSave }) {
   if (!open) return null
   return (
     <AnimeModalInner
-      key={initial?.id || 'new'}
+      key={`${mediaMode}-${initial?.id || 'new'}`}
       initial={initial}
+      mediaMode={mediaMode}
       onClose={onClose}
       onSave={onSave}
     />
   )
 }
 
-function AnimeModalInner({ initial, onClose, onSave }) {
-  const [form, setForm] = useState(() => ({ ...emptyAnime, ...(initial || {}) }))
+function AnimeModalInner({ initial, mediaMode, onClose, onSave }) {
+  const config = getModeConfig(mediaMode)
+  const lists = getLists(mediaMode)
+  const [form, setForm] = useState(() => ({ ...emptyItem(mediaMode), ...(initial || {}) }))
   const firstFieldRef = useRef(null)
 
   useEffect(() => {
@@ -110,7 +113,7 @@ function AnimeModalInner({ initial, onClose, onSave }) {
       <form className="modal glass-strong" onSubmit={handleSubmit}>
         <header className="modal-header">
           <div>
-            <h2 className="modal-title">{isEditing ? 'Edit anime' : 'Add anime'}</h2>
+            <h2 className="modal-title">{isEditing ? config.editTitle : config.addTitle}</h2>
             <div className="modal-sub">
               {isEditing ? 'Update the details and save.' : 'Fill in the basics — only the title is required.'}
             </div>
@@ -127,7 +130,7 @@ function AnimeModalInner({ initial, onClose, onSave }) {
           >
             {form.image ? (
               <>
-                <img src={form.image} alt="Anime cover preview" />
+                <img src={form.image} alt="Cover preview" />
                 <div className="change-hint">Click to change cover image</div>
               </>
             ) : (
@@ -164,7 +167,7 @@ function AnimeModalInner({ initial, onClose, onSave }) {
               className="input"
               value={form.title}
               onChange={(e) => update({ title: e.target.value })}
-              placeholder="e.g. Frieren: Beyond Journey's End"
+              placeholder={config.titlePlaceholder}
               required
             />
           </div>
@@ -178,7 +181,7 @@ function AnimeModalInner({ initial, onClose, onSave }) {
                 value={form.list}
                 onChange={(e) => update({ list: e.target.value })}
               >
-                {LISTS.map((l) => (
+                {lists.map((l) => (
                   <option key={l.id} value={l.id}>
                     {l.name}
                   </option>
@@ -206,7 +209,7 @@ function AnimeModalInner({ initial, onClose, onSave }) {
 
           <div className="field-row">
             <div className="field">
-              <label className="label" htmlFor="f-watched">Episodes watched</label>
+              <label className="label" htmlFor="f-watched">{config.fieldWatchedLabel}</label>
               <input
                 id="f-watched"
                 className="input"
@@ -217,7 +220,7 @@ function AnimeModalInner({ initial, onClose, onSave }) {
               />
             </div>
             <div className="field">
-              <label className="label" htmlFor="f-total">Total episodes</label>
+              <label className="label" htmlFor="f-total">{config.fieldTotalLabel}</label>
               <input
                 id="f-total"
                 className="input"
@@ -243,11 +246,11 @@ function AnimeModalInner({ initial, onClose, onSave }) {
               />
             </div>
             <div className="field">
-              <label className="label" htmlFor="f-studio">Studio</label>
+              <label className="label" htmlFor="f-studio">{config.studioLabel}</label>
               <input
                 id="f-studio"
                 className="input"
-                placeholder="Madhouse, MAPPA…"
+                placeholder={config.studioPlaceholder}
                 value={form.studio}
                 onChange={(e) => update({ studio: e.target.value })}
               />

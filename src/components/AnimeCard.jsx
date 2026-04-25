@@ -8,10 +8,19 @@ import {
   IconStar,
   IconTrash,
 } from '../lib/icons.jsx'
-import { listById } from '../lib/lists.js'
+import { getListById, getModeConfig } from '../lib/lists.js'
 
-function AnimeCardImpl({ anime, onIncrement, onDecrement, onEdit, onDelete, onQuickMove }) {
-  const list = listById(anime.list)
+function AnimeCardImpl({
+  anime,
+  mediaMode = 'anime',
+  onIncrement,
+  onDecrement,
+  onEdit,
+  onDelete,
+  onQuickMove,
+}) {
+  const list = getListById(mediaMode, anime.list)
+  const config = getModeConfig(mediaMode)
   const total = Number(anime.totalEpisodes) || 0
   const watched = Math.max(0, Math.min(Number(anime.watchedEpisodes) || 0, total || Number.POSITIVE_INFINITY))
   const progressPct = total ? Math.min(100, (watched / total) * 100) : 0
@@ -103,7 +112,7 @@ function AnimeCardImpl({ anime, onIncrement, onDecrement, onEdit, onDelete, onQu
           </button>
           <div className="ep-count">
             <div className="ep-count-text">
-              EP {watched}
+              {config.progressShort} {watched}
               {total ? ` / ${total}` : ''}
             </div>
             <div className="ep-progress" aria-hidden="true">
@@ -139,6 +148,9 @@ function AnimeCardImpl({ anime, onIncrement, onDecrement, onEdit, onDelete, onQu
   )
 }
 
-const AnimeCard = memo(AnimeCardImpl, (prev, next) => prev.anime === next.anime)
+const AnimeCard = memo(
+  AnimeCardImpl,
+  (prev, next) => prev.anime === next.anime && prev.mediaMode === next.mediaMode
+)
 
 export default AnimeCard

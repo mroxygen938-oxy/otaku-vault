@@ -3,13 +3,21 @@ import Sidebar from './components/Sidebar.jsx'
 import AnimeCard from './components/AnimeCard.jsx'
 import AnimeModal from './components/AnimeModal.jsx'
 import MovePopover from './components/MovePopover.jsx'
-import { LIST_IDS, LISTS, listById } from './lib/lists.js'
+import {
+  getListById,
+  getListIds,
+  getLists,
+  getModeConfig,
+} from './lib/lists.js'
 import { uid, useLocalStorage } from './lib/storage.js'
 import { IconMenu, IconPlus, IconSearch, IconSparkle, IconX } from './lib/icons.jsx'
 
 const STORAGE_KEY_ANIME = 'otaku-vault/animes/v1'
+const STORAGE_KEY_MANGA = 'otaku-vault/mangas/v1'
 const STORAGE_KEY_THEME = 'otaku-vault/theme'
-const STORAGE_KEY_LIST = 'otaku-vault/active-list'
+const STORAGE_KEY_LIST_ANIME = 'otaku-vault/active-list'
+const STORAGE_KEY_LIST_MANGA = 'otaku-vault/active-list-manga'
+const STORAGE_KEY_MODE = 'otaku-vault/media-mode'
 
 const SAMPLE_ANIME = () => [
   {
@@ -66,10 +74,74 @@ const SAMPLE_ANIME = () => [
   },
 ]
 
+const SAMPLE_MANGA = () => [
+  {
+    id: uid(),
+    title: 'Berserk',
+    image: '',
+    list: 'reading',
+    totalEpisodes: 0,
+    watchedEpisodes: 374,
+    year: '1989',
+    studio: 'Kentaro Miura',
+    rating: 5,
+    notes: 'A masterpiece of dark fantasy.',
+    createdAt: Date.now() - 4000,
+  },
+  {
+    id: uid(),
+    title: 'Vagabond',
+    image: '',
+    list: 'onHold',
+    totalEpisodes: 327,
+    watchedEpisodes: 220,
+    year: '1998',
+    studio: 'Takehiko Inoue',
+    rating: 5,
+    notes: '',
+    createdAt: Date.now() - 3000,
+  },
+  {
+    id: uid(),
+    title: 'Chainsaw Man',
+    image: '',
+    list: 'completed',
+    totalEpisodes: 97,
+    watchedEpisodes: 97,
+    year: '2018',
+    studio: 'Tatsuki Fujimoto',
+    rating: 5,
+    notes: '',
+    createdAt: Date.now() - 2000,
+  },
+  {
+    id: uid(),
+    title: 'Vinland Saga',
+    image: '',
+    list: 'planToRead',
+    totalEpisodes: 0,
+    watchedEpisodes: 0,
+    year: '2005',
+    studio: 'Makoto Yukimura',
+    rating: 0,
+    notes: '',
+    createdAt: Date.now() - 1000,
+  },
+]
+
 export default function App() {
   const [theme, setTheme] = useLocalStorage(STORAGE_KEY_THEME, 'dark')
+  const [mediaMode, setMediaMode] = useLocalStorage(STORAGE_KEY_MODE, 'anime')
   const [animes, setAnimes] = useLocalStorage(STORAGE_KEY_ANIME, SAMPLE_ANIME)
-  const [activeList, setActiveList] = useLocalStorage(STORAGE_KEY_LIST, 'watching')
+  const [mangas, setMangas] = useLocalStorage(STORAGE_KEY_MANGA, SAMPLE_MANGA)
+  const [activeListAnime, setActiveListAnime] = useLocalStorage(
+    STORAGE_KEY_LIST_ANIME,
+    'watching'
+  )
+  const [activeListManga, setActiveListManga] = useLocalStorage(
+    STORAGE_KEY_LIST_MANGA,
+    'reading'
+  )
   const [query, setQuery] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
@@ -79,9 +151,23 @@ export default function App() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const searchRef = useRef(null)
 
+  // Per-mode derived state.
+  const config = getModeConfig(mediaMode)
+  const lists = getLists(mediaMode)
+  const listIds = useMemo(() => getListIds(mediaMode), [mediaMode])
+  const items = mediaMode === 'manga' ? mangas : animes
+  const setItems = mediaMode === 'manga' ? setMangas : setAnimes
+  const activeList = mediaMode === 'manga' ? activeListManga : activeListAnime
+  const setActiveList =
+    mediaMode === 'manga' ? setActiveListManga : setActiveListAnime
+
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
   }, [theme])
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-media-mode', mediaMode)
+  }, [mediaMode])
 
   // Debounce search input — keeps typing buttery smooth on long lists.
   useEffect(() => {
@@ -96,7 +182,11 @@ export default function App() {
         e.preventDefault()
         searchRef.current?.focus()
         searchRef.current?.select()
-      } else if (e.key === '/' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+      } else if (
+        e.key === '/' &&
+        document.activeElement?.tagName !== 'INPUT' &&
+        document.activeElement?.tagName !== 'TEXTAREA'
+      ) {
         e.preventDefault()
         searchRef.current?.focus()
       }
@@ -117,18 +207,18 @@ export default function App() {
   }, [mobileNavOpen])
 
   const counts = useMemo(() => {
-    const c = Object.fromEntries(LIST_IDS.map((id) => [id, 0]))
-    for (const a of animes) c[a.list] = (c[a.list] ?? 0) + 1
+    const c = Object.fromEntries(listIds.map((id) => [id, 0]))
+    for (const a of items) c[a.list] = (c[a.list] ?? 0) + 1
     return c
-  }, [animes])
+  }, [items, listIds])
 
   const filtered = useMemo(() => {
     const q = debouncedQuery
-    return animes
+    return items
       .filter((a) => (activeList === 'all' ? true : a.list === activeList))
       .filter((a) => {
         if (!q) return true
-        const list = listById(a.list)
+        const list = getListById(mediaMode, a.list)
         return (
           a.title.toLowerCase().includes(q) ||
           (a.studio || '').toLowerCase().includes(q) ||
@@ -138,21 +228,29 @@ export default function App() {
         )
       })
       .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
-  }, [animes, activeList, debouncedQuery])
+  }, [items, activeList, debouncedQuery, mediaMode])
 
-  const listInfo = activeList === 'all'
-    ? {
-        id: 'all',
-        name: 'All Anime',
-        tag: 'Library',
-        subtitle: 'Every series across every list in one glass shelf.',
-      }
-    : listById(activeList) || LISTS[0]
+  const listInfo =
+    activeList === 'all'
+      ? {
+          id: 'all',
+          name: config.allLabel,
+          tag: 'Library',
+          subtitle: config.allSubtitle,
+        }
+      : getListById(mediaMode, activeList) || lists[0]
 
   const headerStats = useMemo(() => {
-    const list = activeList === 'all' ? animes : animes.filter((a) => a.list === activeList)
-    const totalEpisodes = list.reduce((sum, a) => sum + (Number(a.totalEpisodes) || 0), 0)
-    const watchedEpisodes = list.reduce((sum, a) => sum + (Number(a.watchedEpisodes) || 0), 0)
+    const list =
+      activeList === 'all' ? items : items.filter((a) => a.list === activeList)
+    const totalEpisodes = list.reduce(
+      (sum, a) => sum + (Number(a.totalEpisodes) || 0),
+      0
+    )
+    const watchedEpisodes = list.reduce(
+      (sum, a) => sum + (Number(a.watchedEpisodes) || 0),
+      0
+    )
     const avgRating = (() => {
       const rated = list.filter((a) => a.rating > 0)
       if (!rated.length) return 0
@@ -164,7 +262,7 @@ export default function App() {
       totalEpisodes,
       avgRating,
     }
-  }, [animes, activeList])
+  }, [items, activeList])
 
   const toast = useCallback((msg) => {
     const id = uid()
@@ -182,15 +280,19 @@ export default function App() {
     setModalOpen(true)
   }, [])
 
-  const saveAnime = useCallback(
+  const saveItem = useCallback(
     (data) => {
       setEditing((current) => {
         if (current?.id) {
-          setAnimes((a) => a.map((x) => (x.id === current.id ? { ...x, ...data, id: current.id } : x)))
+          setItems((a) =>
+            a.map((x) =>
+              x.id === current.id ? { ...x, ...data, id: current.id } : x
+            )
+          )
           toast('Updated')
         } else {
           const entry = { ...data, id: uid(), createdAt: Date.now() }
-          setAnimes((a) => [entry, ...a])
+          setItems((a) => [entry, ...a])
           setActiveList(entry.list)
           toast('Added to your library')
         }
@@ -198,60 +300,64 @@ export default function App() {
       })
       setModalOpen(false)
     },
-    [setAnimes, setActiveList, toast]
+    [setItems, setActiveList, toast]
   )
 
-  const deleteAnime = useCallback(
+  const deleteItem = useCallback(
     (anime) => {
-      setAnimes((a) => a.filter((x) => x.id !== anime.id))
+      setItems((a) => a.filter((x) => x.id !== anime.id))
       toast('Removed')
     },
-    [setAnimes, toast]
+    [setItems, toast]
   )
 
-  const moveAnime = useCallback(
+  const moveItem = useCallback(
     (anime, listId) => {
-      setAnimes((a) =>
+      setItems((a) =>
         a.map((x) => {
           if (x.id !== anime.id) return x
           const patch = { list: listId }
-          if (listId === 'completed' && x.totalEpisodes > 0) {
+          if (listId === config.completedList && x.totalEpisodes > 0) {
             patch.watchedEpisodes = x.totalEpisodes
           }
           return { ...x, ...patch }
         })
       )
-      const list = listById(listId)
+      const list = getListById(mediaMode, listId)
       toast(`Moved to ${list?.name}`)
       setMovePopover(null)
     },
-    [setAnimes, toast]
+    [setItems, toast, mediaMode, config]
   )
 
   const increment = useCallback(
     (anime) => {
-      setAnimes((a) =>
+      setItems((a) =>
         a.map((x) => {
           if (x.id !== anime.id) return x
           const total = Number(x.totalEpisodes) || 0
           const next = Number(x.watchedEpisodes || 0) + 1
           const clamped = total > 0 ? Math.min(next, total) : next
           const patch = { watchedEpisodes: clamped }
-          if (total > 0 && clamped >= total && x.list !== 'completed') {
-            patch.list = 'completed'
-          } else if (clamped > 0 && x.list === 'planToWatch') {
-            patch.list = 'watching'
+          if (
+            total > 0 &&
+            clamped >= total &&
+            x.list !== config.completedList
+          ) {
+            patch.list = config.completedList
+          } else if (clamped > 0 && x.list === config.planList) {
+            patch.list = config.activeReadingList
           }
           return { ...x, ...patch }
         })
       )
     },
-    [setAnimes]
+    [setItems, config]
   )
 
   const decrement = useCallback(
     (anime) => {
-      setAnimes((a) =>
+      setItems((a) =>
         a.map((x) => {
           if (x.id !== anime.id) return x
           const next = Math.max(0, Number(x.watchedEpisodes || 0) - 1)
@@ -259,14 +365,19 @@ export default function App() {
         })
       )
     },
-    [setAnimes]
+    [setItems]
   )
 
   const openQuickMove = useCallback((anime, anchorEl) => {
     const rect = anchorEl.getBoundingClientRect()
     setMovePopover({
       anime,
-      rect: { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right },
+      rect: {
+        top: rect.top,
+        bottom: rect.bottom,
+        left: rect.left,
+        right: rect.right,
+      },
     })
   }, [])
 
@@ -283,8 +394,17 @@ export default function App() {
     [setActiveList]
   )
 
+  const onChangeMode = useCallback(
+    (mode) => {
+      setMediaMode(mode)
+      setQuery('')
+    },
+    [setMediaMode]
+  )
+
   const filteredCount = filtered.length
-  const totalForActive = activeList === 'all' ? animes.length : counts[activeList] ?? 0
+  const totalForActive =
+    activeList === 'all' ? items.length : counts[activeList] ?? 0
   const isSearching = debouncedQuery.length > 0
 
   return (
@@ -299,12 +419,17 @@ export default function App() {
 
       <div className={`sidebar-mobile-wrap ${mobileNavOpen ? 'open' : ''}`}>
         <Sidebar
+          mediaMode={mediaMode}
+          onChangeMode={onChangeMode}
+          lists={lists}
           activeList={activeList}
           onSelect={onSelectList}
           counts={counts}
           theme={theme}
           onTheme={setTheme}
-          totalCount={animes.length}
+          totalCount={items.length}
+          allLabel={config.allLabel}
+          sectionTitle={config.sectionTitle}
           onClose={() => setMobileNavOpen(false)}
         />
       </div>
@@ -325,7 +450,7 @@ export default function App() {
             <input
               ref={searchRef}
               type="search"
-              placeholder="Search title, studio, year, list…"
+              placeholder={config.searchPlaceholder}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               aria-label="Search library"
@@ -358,10 +483,10 @@ export default function App() {
             type="button"
             className="btn btn-primary topbar-add"
             onClick={openAdd}
-            aria-label="Add anime"
+            aria-label={config.addLabel}
           >
             <IconPlus />
-            <span className="topbar-add-label">Add anime</span>
+            <span className="topbar-add-label">{config.addLabel}</span>
           </button>
         </div>
 
@@ -369,17 +494,21 @@ export default function App() {
           <div className="list-header-text">
             <span className="list-tag">{listInfo.tag}</span>
             <h1 className="list-title">{listInfo.name}</h1>
-            <p className="list-subtitle">{listInfo.subtitle || 'Your curated anime shelf.'}</p>
+            <p className="list-subtitle">
+              {listInfo.subtitle || `Your curated ${config.label.toLowerCase()} shelf.`}
+            </p>
           </div>
           <div className="list-stats">
             <div className="stat">
               <div className="stat-label">Titles</div>
               <div className="stat-value">
-                {isSearching ? `${filteredCount}/${totalForActive}` : headerStats.titles}
+                {isSearching
+                  ? `${filteredCount}/${totalForActive}`
+                  : headerStats.titles}
               </div>
             </div>
             <div className="stat">
-              <div className="stat-label">Episodes</div>
+              <div className="stat-label">{config.progressLabel}</div>
               <div className="stat-value">
                 {headerStats.episodesWatched}
                 {headerStats.totalEpisodes > 0 ? (
@@ -393,7 +522,9 @@ export default function App() {
             <div className="stat">
               <div className="stat-label">Avg Rating</div>
               <div className="stat-value">
-                {headerStats.avgRating > 0 ? headerStats.avgRating.toFixed(1) : '—'}
+                {headerStats.avgRating > 0
+                  ? headerStats.avgRating.toFixed(1)
+                  : '—'}
               </div>
             </div>
           </div>
@@ -405,17 +536,19 @@ export default function App() {
               <IconSparkle />
             </div>
             <h2 className="empty-title">
-              {isSearching ? 'Nothing matches that search' : 'This shelf is empty'}
+              {isSearching
+                ? 'Nothing matches that search'
+                : 'This shelf is empty'}
             </h2>
             <p className="empty-text">
               {isSearching
-                ? 'Try a different title, studio, year, or list.'
-                : 'Add your first anime to start building this list.'}
+                ? `Try a different title, ${config.studioLabel.toLowerCase()}, year, or list.`
+                : `Add your first ${config.label.toLowerCase()} to start building this list.`}
             </p>
             {!isSearching && (
               <button type="button" className="btn btn-primary" onClick={openAdd}>
                 <IconPlus />
-                <span>Add your first anime</span>
+                <span>{config.addFirstLabel}</span>
               </button>
             )}
           </section>
@@ -425,10 +558,11 @@ export default function App() {
               <AnimeCard
                 key={a.id}
                 anime={a}
+                mediaMode={mediaMode}
                 onIncrement={increment}
                 onDecrement={decrement}
                 onEdit={openEdit}
-                onDelete={deleteAnime}
+                onDelete={deleteItem}
                 onQuickMove={openQuickMove}
               />
             ))}
@@ -440,7 +574,7 @@ export default function App() {
         type="button"
         className="fab"
         onClick={openAdd}
-        aria-label="Add anime"
+        aria-label={config.addLabel}
       >
         <IconPlus />
       </button>
@@ -448,15 +582,17 @@ export default function App() {
       <AnimeModal
         open={modalOpen}
         initial={editing}
+        mediaMode={mediaMode}
         onClose={closeModal}
-        onSave={saveAnime}
+        onSave={saveItem}
       />
 
       {movePopover && (
         <MovePopover
           anchorRect={movePopover.rect}
+          mediaMode={mediaMode}
           currentList={movePopover.anime.list}
-          onSelect={(listId) => moveAnime(movePopover.anime, listId)}
+          onSelect={(listId) => moveItem(movePopover.anime, listId)}
           onClose={() => setMovePopover(null)}
         />
       )}

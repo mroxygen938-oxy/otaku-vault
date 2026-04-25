@@ -1,9 +1,10 @@
 import { useEffect, useRef } from 'react'
-import { LISTS } from '../lib/lists.js'
+import { getLists } from '../lib/lists.js'
 import { ICON_MAP } from '../lib/iconMap.js'
 import { IconCheck } from '../lib/icons.jsx'
 
-export default function MovePopover({ anchorRect, currentList, onSelect, onClose }) {
+export default function MovePopover({ anchorRect, mediaMode = 'anime', currentList, onSelect, onClose }) {
+  const lists = getLists(mediaMode)
   const ref = useRef(null)
 
   useEffect(() => {
@@ -61,7 +62,7 @@ export default function MovePopover({ anchorRect, currentList, onSelect, onClose
       >
         Move to
       </div>
-      {LISTS.map((l) => {
+      {lists.map((l) => {
         const Icon = ICON_MAP[l.icon]
         const isCurrent = l.id === currentList
         return (
